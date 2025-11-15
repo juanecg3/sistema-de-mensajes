@@ -41,7 +41,7 @@ WIND_MIN, WIND_MAX = 0.0, 200.0
 
 def connect_db():
     logging.info("Connecting to PostgreSQL...")
-    conn = psycopg.connect(DATABASE_URL, row_factory=dict_row)
+    conn = psycopg.connect(DATABASE_URL, row_factory=dict_row, autocommit=True)
     logging.info("Connected to PostgreSQL")
     return conn
 
