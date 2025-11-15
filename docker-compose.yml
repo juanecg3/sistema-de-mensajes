@@ -1,56 +1,55 @@
-version: '3.8'
-RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
-RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
-RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST}
-ports:
-- "5672:5672"
-- "15672:15672" # RabbitMQ management
+
+services:
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    restart: always
+
+  postgres:
+    image: postgres:16
+    container_name: postgres
+    environment:
+      POSTGRES_USER: weather
+      POSTGRES_PASSWORD: weatherpass
+      POSTGRES_DB: weatherdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: always
+
+  producer:
+    build: ./producer
+    container_name: producer
+    environment:
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+    depends_on:
+      - rabbitmq
+    restart: always
+
+  consumer:
+    build: ./consumer
+    container_name: consumer
+    environment:
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: weatherdb
+      POSTGRES_USER: weather
+      POSTGRES_PASSWORD: weatherpass
+    depends_on:
+      - rabbitmq
+      - postgres
+    restart: always
+
 volumes:
-- rabbitmq_data:/var/lib/rabbitmq
-restart: always
-
-
-postgres:
-image: postgres:15
-container_name: postgres
-environment:
-POSTGRES_USER: ${POSTGRES_USER}
-POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-POSTGRES_DB: ${POSTGRES_DB}
-ports:
-- "5432:5432"
-volumes:
-- pgdata:/var/lib/postgresql/data
-- ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-restart: always
-
-
-producer:
-build: ./producer
-container_name: producer
-environment:
-RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672/${RABBITMQ_VHOST}
-PRODUCER_INTERVAL_SEC: ${PRODUCER_INTERVAL_SEC}
-depends_on:
-- rabbitmq
-restart: always
-
-
-consumer:
-build: ./consumer
-container_name: consumer
-environment:
-RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672/${RABBITMQ_VHOST}
-DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-METRICS_PORT: ${METRICS_PORT}
-ports:
-- "${METRICS_PORT}:${METRICS_PORT}"
-depends_on:
-- rabbitmq
-- postgres
-restart: always
-
-
-volumes:
-rabbitmq_data:
-pgdata:
+  rabbitmq_data:
+  postgres_data:
